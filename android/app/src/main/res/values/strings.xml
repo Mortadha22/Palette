@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PaletteApp</string>
+    <string name="title_activity_main">PaletteApp</string>
+    <string name="package_name">com.essid.paletteapp</string>
+    <string name="custom_url_scheme">com.essid.paletteapp</string>
+</resources>

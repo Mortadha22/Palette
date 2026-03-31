@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>PaletteApp - Scanner QR Pro</title>
+<script src="https://unpkg.com/html5-qrcode"></script>
+<style>
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a22;
+    --surface2: #22222e;
+    --accent: #6c63ff;
+    --accent2: #ff6584;
+    --green: #43e97b;
+    --yellow: #f7971e;
+    --red: #ff4757;
+    --text: #f0f0f8;
+    --muted: #7c7c9a;
+    --border: #2e2e3e;
+    --radius: 16px;
+    --font: 'Segoe UI', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; overflow-x: hidden; }
+  .screen { display: none; min-height: 100vh; flex-direction: column; padding-bottom: 80px; }
+  .screen.active { display: flex; }
+
+  /* LOGIN */
+  #loginScreen { justify-content: center; align-items: center; padding: 32px 24px; background: radial-gradient(ellipse at top, #1a1040 0%, var(--bg) 70%); }
+  .login-logo { text-align: center; margin-bottom: 40px; }
+  .login-logo .icon { font-size: 64px; margin-bottom: 12px; }
+  .login-logo h1 { font-size: 28px; font-weight: 800; letter-spacing: -1px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .login-logo p { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; width: 100%; max-width: 380px; }
+  .form-group { margin-bottom: 18px; }
+  .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px;
+    color: var(--text); font-size: 15px; padding: 14px 16px; outline: none; font-family: var(--font);
+    transition: border-color 0.2s; -webkit-appearance: none; appearance: none;
+  }
+  .form-group select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237c7c9a' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 40px; }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--accent); }
+  .form-group input[readonly], .form-group input[disabled] { opacity: 0.6; cursor: not-allowed; }
+  .btn { width: 100%; padding: 16px; border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.2s; letter-spacing: 0.3px; }
+  .btn-primary { background: linear-gradient(135deg, var(--accent), #5046e5); color: #fff; }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-success { background: var(--green); color: #000; }
+  .btn-warning { background: var(--yellow); color: #000; }
+  .error-msg { color: var(--red); font-size: 13px; margin-top: 10px; text-align: center; min-height: 20px; }
+
+  /* TOPBAR */
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+  .topbar h2 { font-size: 18px; font-weight: 800; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; cursor: pointer; }
+  .role-badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .role-controle { background: rgba(108,99,255,0.2); color: var(--accent); border: 1px solid rgba(108,99,255,0.3); }
+  .role-operator { background: rgba(255,101,132,0.2); color: var(--accent2); border: 1px solid rgba(255,101,132,0.3); }
+
+  /* BOTTOM BAR */
+  .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 12px 20px 20px; display: flex; gap: 12px; z-index: 20; }
+  .bottom-bar .btn { flex: 1; padding: 14px; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+  /* CONTENT */
+  .content { flex: 1; padding: 16px 16px 0; overflow-y: auto; }
+
+  /* COUNTERS */
+  .counters-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+  .counter-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+  .counter-card .c-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+  .counter-card .c-value { font-size: 26px; font-weight: 800; line-height: 1; }
+  .counter-card.c-total .c-value { color: var(--text); }
+  .counter-card.c-brut .c-value { color: var(--yellow); }
+  .counter-card.c-stocke .c-value { color: var(--accent); }
+  .counter-card.c-vendu .c-value { color: var(--green); }
+  .counter-card.c-plastifie .c-value { color: var(--accent2); }
+  .counter-card.span2 { grid-column: span 2; }
+
+  /* SEARCH + FILTER ROW */
+  .search-filter-row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .search-bar { position: relative; flex: 1; min-width: 180px; }
+  .search-bar input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-size: 14px; padding: 12px 16px 12px 42px; outline: none; font-family: var(--font); }
+  .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 16px; pointer-events: none; }
+  .filter-btn-wrap { position: relative; flex-shrink: 0; }
+  .filter-btn { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-size: 20px; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+  .filter-btn.active { border-color: var(--accent); background: rgba(108,99,255,0.15); }
+  .filter-badge { position: absolute; top: -5px; right: -5px; background: var(--accent2); color: #fff; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; font-weight: 800; display: none; align-items: center; justify-content: center; }
+  .result-info { font-size: 12px; color: var(--muted); margin-bottom: 10px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+  .toggle-palettes-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 12px; cursor: pointer; color: var(--muted); transition: all 0.2s; }
+  .toggle-palettes-btn:hover { border-color: var(--accent); color: var(--text); }
+
+  /* PALETTE CARDS */
+  .palette-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; cursor: pointer; transition: border-color 0.2s, transform 0.15s; }
+  .palette-card:active { transform: scale(0.98); }
+  .palette-card:hover { border-color: var(--accent); }
+  .palette-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .palette-id { font-size: 13px; font-weight: 700; color: var(--accent); font-family: monospace; }
+  .status-badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+  .status-P_Brut { background: rgba(247,151,30,0.15); color: var(--yellow); border: 1px solid rgba(247,151,30,0.3); }
+  .status-P_Stocke { background: rgba(108,99,255,0.15); color: var(--accent); border: 1px solid rgba(108,99,255,0.3); }
+  .status-P_Vendu { background: rgba(67,233,123,0.15); color: var(--green); border: 1px solid rgba(67,233,123,0.3); }
+  .status-P_Plastifie { background: rgba(255,101,132,0.15); color: var(--accent2); border: 1px solid rgba(255,101,132,0.3); }
+  .palette-info { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .info-item { font-size: 12px; color: var(--muted); }
+  .info-item span { color: var(--text); font-weight: 500; }
+
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: flex; align-items: flex-end; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal { background: var(--surface); border-radius: 24px 24px 0 0; width: 100%; max-height: 92vh; overflow-y: auto; padding: 24px 20px 32px; transform: translateY(100%); transition: transform 0.3s cubic-bezier(.4,0,.2,1); }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 20px; }
+  .modal-title { font-size: 20px; font-weight: 800; margin-bottom: 20px; }
+
+  /* FILTER MODAL */
+  .filter-section { margin-bottom: 20px; }
+  .filter-section-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px; }
+  .filter-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .filter-chip { padding: 8px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); transition: all 0.2s; display: flex; align-items: center; gap: 6px; user-select: none; }
+  .filter-chip.on { border-color: var(--accent); background: rgba(108,99,255,0.18); color: var(--text); }
+  .chip-count { font-size: 10px; background: rgba(255,255,255,0.08); padding: 1px 6px; border-radius: 10px; }
+  .filter-chip.on .chip-count { background: rgba(108,99,255,0.3); }
+  .date-filter-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .date-filter-group { flex: 1; min-width: 140px; }
+  .date-filter-group input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 12px; color: var(--text); font-size: 13px; font-family: monospace; }
+  .date-error { color: var(--red); font-size: 11px; margin-top: 4px; display: none; }
+
+  /* DETAIL */
+  .detail-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .detail-row:last-child { border-bottom: none; }
+  .detail-label { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+  .detail-value { font-size: 14px; font-weight: 500; text-align: right; max-width: 60%; word-break: break-all; }
+  .qr-img { display: block; margin: 16px auto; border-radius: 12px; }
+
+  /* SCANNER */
+  #qr-reader-container { position: relative; overflow: hidden; border-radius: var(--radius); background: #000; margin-bottom: 16px; min-height: 300px; }
+  #qr-reader { width: 100%; border: none !important; }
+  #qr-reader video { border-radius: var(--radius); width: 100%; }
+  .scan-hint { text-align: center; color: var(--muted); font-size: 13px; margin-top: 12px; }
+
+  /* SCAN MODE TABS */
+  .mode-tabs { display: flex; background: var(--surface2); border-radius: 12px; padding: 4px; gap: 4px; margin-bottom: 20px; }
+  .mode-tab { flex: 1; padding: 11px; border-radius: 9px; border: none; background: transparent; color: var(--muted); font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: var(--font); }
+  .mode-tab.active { background: var(--surface); color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+
+  /* STEPPER */
+  .stepper { display: flex; align-items: stretch; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface2); height: 54px; }
+  .stepper-btn { width: 54px; background: var(--surface2); border: none; color: var(--text); font-size: 24px; font-weight: 300; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s; }
+  .stepper-btn:active { background: rgba(108,99,255,0.2); }
+  .stepper input { flex: 1; background: transparent; border: none; border-left: 1px solid var(--border); border-right: 1px solid var(--border); color: var(--text); font-size: 20px; font-weight: 700; text-align: center; outline: none; font-family: var(--font); -moz-appearance: textfield; min-width: 0; }
+  .stepper input::-webkit-outer-spin-button, .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  /* AUTOCOMPLETE */
+  .autocomplete-wrap { position: relative; }
+  .autocomplete-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; z-index: 50; max-height: 180px; overflow-y: auto; }
+  .autocomplete-item { padding: 12px 16px; font-size: 14px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background 0.15s; }
+  .autocomplete-item:last-child { border-bottom: none; }
+  .autocomplete-item:active { background: rgba(108,99,255,0.15); }
+
+  /* HISTORY */
+  .hist-item { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 10px; cursor: pointer; transition: border-color 0.2s; }
+  .hist-item:active { transform: scale(0.98); }
+  .hist-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .hist-id { font-size: 12px; color: var(--accent); font-family: monospace; font-weight: 700; }
+  .hist-date { font-size: 11px; color: var(--muted); }
+  .hist-flow { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .hist-arrow { color: var(--muted); }
+  .hist-meta { font-size: 11px; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+
+  /* CONFIRM */
+  .confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 24px; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .confirm-overlay.open { opacity: 1; pointer-events: all; }
+  .confirm-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px 24px; width: 100%; max-width: 340px; text-align: center; }
+  .confirm-icon { font-size: 48px; margin-bottom: 12px; }
+  .confirm-box h3 { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
+  .confirm-box p { font-size: 14px; color: var(--muted); margin-bottom: 20px; }
+  .confirm-actions { display: flex; gap: 10px; }
+  .confirm-actions .btn { flex: 1; padding: 14px; }
+
+  /* SUCCESS */
+  .success-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px 20px; text-align: center; margin: 20px 0; }
+  .success-icon { font-size: 60px; margin-bottom: 16px; }
+  .success-card h3 { font-size: 22px; font-weight: 800; color: var(--green); margin-bottom: 8px; }
+  .success-card p { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+
+  /* TABS */
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; }
+  .tab { padding: 8px 18px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; border: 1px solid var(--border); background: var(--surface); color: var(--muted); transition: all 0.2s; }
+  .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.2); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-wrap { display: flex; justify-content: center; align-items: center; padding: 40px; flex-direction: column; gap: 12px; color: var(--muted); font-size: 14px; }
+  .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty .e-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty p { font-size: 14px; }
+
+  /* MODEL PROCESS */
+  .mp-config-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 14px; }
+  .mp-config-card .mp-card-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .mp-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .mp-auto-field { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+  .mp-auto-field .af-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .mp-auto-field .af-value { font-size: 15px; font-weight: 700; color: var(--text); font-family: monospace; }
+  .mp-auto-field.af-accent .af-value { color: var(--accent); }
+  .mp-auto-field.af-green .af-value { color: var(--green); }
+  .mp-auto-field.af-yellow .af-value { color: var(--yellow); }
+  .mp-auto-field.af-red .af-value { color: var(--accent2); }
+  .mp-progress-wrap { margin: 16px 0 6px; }
+  .mp-progress-bar-bg { background: var(--surface2); border-radius: 100px; height: 14px; overflow: hidden; border: 1px solid var(--border); }
+  .mp-progress-bar-fill { height: 100%; border-radius: 100px; background: linear-gradient(90deg, var(--accent), var(--green)); transition: width 0.6s ease; }
+  .mp-progress-label { font-size: 13px; font-weight: 700; color: var(--text); margin-top: 6px; display: flex; justify-content: space-between; }
+  .mp-active-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(67,233,123,0.15); color: var(--green); border: 1px solid rgba(67,233,123,0.3); border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 700; }
+  .mp-active-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: blink 1.2s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+  .mp-no-order { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .mp-no-order .e-icon { font-size: 56px; margin-bottom: 12px; }
+  .mp-tile-dims { display: flex; gap: 10px; }
+  .mp-tile-dims .form-group { flex: 1; }
+  .dim-input-wrap { position: relative; }
+  .dim-input-wrap input { padding-right: 36px; }
+  .dim-unit { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 12px; font-weight: 700; pointer-events: none; }
+  .mp-save-status { font-size: 11px; color: var(--muted); text-align: center; margin-top: 6px; min-height: 16px; }
+
+  /* COMMANDES HISTORY */
+  .cmd-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; }
+  .cmd-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .cmd-id { font-size: 13px; font-weight: 700; color: var(--accent); font-family: monospace; }
+  .cmd-badge-active { background: rgba(67,233,123,0.15); color: var(--green); border: 1px solid rgba(67,233,123,0.3); border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 700; }
+  .cmd-badge-done { background: rgba(108,99,255,0.12); color: var(--muted); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 700; }
+  .cmd-info { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .cmd-info-item { font-size: 12px; color: var(--muted); }
+  .cmd-info-item span { color: var(--text); font-weight: 600; }
+  .cmd-resume-btn { margin-top: 12px; width: 100%; padding: 10px; background: rgba(108,99,255,0.15); border: 1px solid rgba(108,99,255,0.3); border-radius: 10px; color: var(--accent); font-size: 13px; font-weight: 700; cursor: pointer; }
+  .cmd-resume-btn:active { transform: scale(0.97); }
+
+  /* PROCESS TABS */
+  .process-subtabs { display: flex; background: var(--surface2); border-radius: 12px; padding: 4px; gap: 4px; margin-bottom: 16px; }
+  .process-subtab { flex: 1; padding: 10px; border-radius: 9px; border: none; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--font); transition: all 0.2s; }
+  .process-subtab.active { background: var(--surface); color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+
+  textarea { resize: none; }
+  select option { background: var(--surface2); }
+  .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin: 16px 0 10px; }
+  .btn-sm { padding: 10px 16px; font-size: 13px; border-radius: 10px; }
+  .inline-btns { display: flex; gap: 10px; }
+  .inline-btns .btn { flex: 1; }
+  hr.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+  .mt8 { margin-top: 8px; }
+  .palettes-container { transition: all 0.3s ease; }
+  .palettes-container.hide { display: none; }
+
+  /* SYNC INDICATOR */
+  .sync-bar { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin-bottom: 10px; padding: 8px 12px; background: var(--surface); border-radius: 10px; border: 1px solid var(--border); }
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: blink 2s infinite; flex-shrink: 0; }
+  .sync-dot.syncing { background: var(--yellow); }
+  .sync-dot.error { background: var(--red); animation: none; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="screen active">
+  <div class="login-logo">
+    <div class="icon">📦</div>
+    <h1>PaletteApp</h1>
+    <p>Gestion des palettes en temps réel</p>
+  </div>
+  <div class="login-card">
+    <div class="form-group">
+      <label>Utilisateur</label>
+      <input type="text" id="loginUser" placeholder="Entrez votre nom d'utilisateur" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label>Mot de passe</label>
+      <input type="password" id="loginPwd" placeholder="••••••••">
+    </div>
+    <button class="btn btn-primary" onclick="doLogin()"><span id="loginBtnText">Connexion</span></button>
+    <div class="error-msg" id="loginError"></div>
+  </div>
+</div>
+
+<!-- OPERATOR SCREEN -->
+<div id="operatorScreen" class="screen">
+  <div class="topbar">
+    <div>
+      <div style="font-size:13px;color:var(--muted)">Connecté en tant que</div>
+      <h2 id="opName">—</h2>
+    </div>
+    <div class="topbar-right">
+      <span class="role-badge role-operator">Operateur</span>
+      <div class="avatar" onclick="showLogoutConfirm()" id="opAvatar">?</div>
+    </div>
+  </div>
+  <div class="content" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 160px);">
+    <div style="text-align:center;padding:20px;">
+      <div style="font-size:80px;margin-bottom:16px;">📷</div>
+      <h3 style="font-size:22px;font-weight:800;margin-bottom:8px;">Scanner une palette</h3>
+      <p style="color:var(--muted);font-size:14px;line-height:1.6;">Caméra QR ou saisie manuelle de l'ID.</p>
+    </div>
+  </div>
+  <div class="bottom-bar">
+    <button class="btn btn-primary" onclick="openScanner()">📷 Scanner / Saisir</button>
+  </div>
+</div>
+
+<!-- CONTROLLER SCREEN -->
+<div id="controllerScreen" class="screen">
+  <div class="topbar">
+    <div>
+      <div style="font-size:13px;color:var(--muted)">Connecté en tant que</div>
+      <h2 id="ctrlName">—</h2>
+    </div>
+    <div class="topbar-right">
+      <span class="role-badge role-controle">Contrôle</span>
+      <div class="avatar" onclick="showLogoutConfirm()" id="ctrlAvatar">?</div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="tabs">
+      <div class="tab" id="tabBtnProcess" onclick="switchTab('process')">🏭 Model Process</div>
+      <div class="tab active" id="tabBtnPalettes" onclick="switchTab('palettes')">📦 Palettes</div>
+      <div class="tab" id="tabBtnHistory" onclick="switchTab('history')">📋 Historique</div>
+    </div>
+
+    <!-- MODEL PROCESS TAB -->
+    <div id="tabProcess" style="display:none;">
+      <div class="process-subtabs">
+        <button class="process-subtab active" id="pSubDash" onclick="switchProcessTab('dashboard')">🏭 En cours</button>
+        <button class="process-subtab" id="pSubHistory" onclick="switchProcessTab('history')">📋 Commandes</button>
+      </div>
+
+      <!-- DASHBOARD SUB-TAB -->
+      <div id="pTabDashboard">
+        <div class="mp-no-order" id="mpNoOrder">
+          <div class="e-icon">🏭</div>
+          <p style="font-size:15px;font-weight:700;margin-bottom:6px;">Aucune commande active</p>
+          <p style="font-size:13px;">Configurez une nouvelle commande ci-dessous.</p>
+        </div>
+
+        <div id="mpDashboard" style="display:none;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <span class="mp-active-badge"><span class="dot"></span>En cours</span>
+            <button class="btn btn-danger btn-sm" style="width:auto;padding:8px 14px;" onclick="confirmStopOrder()">⏹ Terminer / Arrêter</button>
+          </div>
+
+          <div class="mp-config-card">
+            <div class="mp-card-title">📋 Commande</div>
+            <div class="mp-grid2">
+              <div class="mp-auto-field af-accent"><div class="af-label">Order ID</div><div class="af-value" id="dash_orderID">—</div></div>
+              <div class="mp-auto-field"><div class="af-label">Modèle</div><div class="af-value" id="dash_modelName">—</div></div>
+              <div class="mp-auto-field"><div class="af-label">Type</div><div class="af-value" id="dash_type">—</div></div>
+              <div class="mp-auto-field"><div class="af-label">Palettes commandées</div><div class="af-value" id="dash_palettesCmd">—</div></div>
+              <div class="mp-auto-field"><div class="af-label">Tuiles / Carton</div><div class="af-value" id="dash_tilesPerCarton">—</div></div>
+              <div class="mp-auto-field"><div class="af-label">Cartons / Palette</div><div class="af-value" id="dash_cartonsPerPalette">—</div></div>
+              <div class="mp-auto-field"><div class="af-label">Dimensions tuile</div><div class="af-value" id="dash_dims">—</div></div>
+              <div class="mp-auto-field af-yellow"><div class="af-label">m² / Palette</div><div class="af-value" id="dash_paletteMetre">—</div></div>
+              <div class="mp-auto-field af-yellow" style="grid-column:span 2;"><div class="af-label">Total m² commandé</div><div class="af-value" id="dash_orderMetres">—</div></div>
+            </div>
+          </div>
+
+          <div class="mp-config-card">
+            <div class="mp-card-title">⏱️ Temps</div>
+            <div class="mp-grid2">
+              <div class="mp-auto-field"><div class="af-label">Démarrage</div><div class="af-value" id="dash_startTime" style="font-size:12px;">—</div></div>
+              <div class="mp-auto-field af-yellow"><div class="af-label">Délai écoulé</div><div class="af-value" id="dash_delay">—</div></div>
+              <div class="mp-auto-field af-green" style="grid-column:span 2;"><div class="af-label">Fin estimée</div><div class="af-value" id="dash_endTime" style="font-size:12px;">—</div></div>
+            </div>
+          </div>
+
+          <div class="mp-config-card">
+            <div class="mp-card-title">📊 Progression</div>
+            <div class="mp-grid2">
+              <div class="mp-auto-field af-accent"><div class="af-label">Compteur actuel</div><div class="af-value" id="dash_counter">—</div></div>
+              <div class="mp-auto-field"><div class="af-label">Tuiles totales</div><div class="af-value" id="dash_totalTiles">—</div></div>
+            </div>
+            <div class="mp-progress-wrap">
+              <div class="mp-progress-bar-bg"><div class="mp-progress-bar-fill" id="dash_progressBar" style="width:0%"></div></div>
+              <div class="mp-progress-label">
+                <span id="dash_progressPct">0%</span>
+                <span id="dash_progressFrac" style="color:var(--muted);font-weight:400;font-size:12px;"></span>
+              </div>
+            </div>
+            <div class="mp-save-status" id="mpSaveStatus">⏳ Synchronisation en attente...</div>
+          </div>
+        </div>
+
+        <!-- Config Form -->
+        <div class="mp-config-card" id="mpConfigForm">
+          <div class="mp-card-title">⚙️ Nouvelle Commande</div>
+          <div class="form-group">
+            <label>Modèle * <span style="color:var(--muted);font-size:10px;font-weight:400;">(ex: JADE GRIS)</span></label>
+            <input type="text" id="mp_modelName" placeholder="JADE GRIS" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div class="form-group">
+            <label>Type *</label>
+            <select id="mp_type">
+              <option value="">— Sélectionner —</option>
+              <option value="MPC">MPC</option>
+              <option value="GCCB">GCCB</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Nombre de palettes commandées *</label>
+            <div class="stepper">
+              <button type="button" class="stepper-btn" onclick="mpStep('mp_palettes',-1,1,999)">−</button>
+              <input type="number" id="mp_palettes" min="1" max="999" value="" placeholder="—" inputmode="numeric">
+              <button type="button" class="stepper-btn" onclick="mpStep('mp_palettes',1,1,999)">+</button>
+            </div>
+          </div>
+          <div class="mp-tile-dims">
+            <div class="form-group">
+              <label>Largeur tuile *</label>
+              <div class="dim-input-wrap">
+                <input type="number" id="mp_tileWidth" min="1" max="200" placeholder="25" inputmode="decimal" step="0.5">
+                <span class="dim-unit">cm</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Hauteur tuile *</label>
+              <div class="dim-input-wrap">
+                <input type="number" id="mp_tileHeight" min="1" max="200" placeholder="50" inputmode="decimal" step="0.5">
+                <span class="dim-unit">cm</span>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Cartons par palette * <span style="color:var(--muted);font-weight:400;text-transform:none;font-size:11px;">(10–70)</span></label>
+            <div class="stepper">
+              <button type="button" class="stepper-btn" onclick="mpStep('mp_cartonsPerPalette',-1,10,70)">−</button>
+              <input type="number" id="mp_cartonsPerPalette" min="10" max="70" value="" placeholder="—" inputmode="numeric">
+              <button type="button" class="stepper-btn" onclick="mpStep('mp_cartonsPerPalette',1,10,70)">+</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Tuiles par carton * <span style="color:var(--muted);font-weight:400;text-transform:none;font-size:11px;">(4–20)</span></label>
+            <div class="stepper">
+              <button type="button" class="stepper-btn" onclick="mpStep('mp_tilesPerCarton',-1,4,20)">−</button>
+              <input type="number" id="mp_tilesPerCarton" min="4" max="20" value="" placeholder="—" inputmode="numeric">
+              <button type="button" class="stepper-btn" onclick="mpStep('mp_tilesPerCarton',1,4,20)">+</button>
+            </div>
+          </div>
+          <div style="background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.2);border-radius:12px;padding:14px;margin:14px 0;">
+            <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">📐 Calcul automatique</div>
+            <div class="mp-grid2">
+              <div>
+                <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:3px;">Tuiles total</div>
+                <div style="font-size:16px;font-weight:800;color:var(--text);" id="prev_totalTiles">—</div>
+              </div>
+              <div>
+                <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:3px;">m² / Palette</div>
+                <div style="font-size:16px;font-weight:800;color:var(--yellow);" id="prev_paletteMetre">—</div>
+              </div>
+              <div style="grid-column:span 2;">
+                <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:3px;">Total m² commandé</div>
+                <div style="font-size:16px;font-weight:800;color:var(--green);" id="prev_orderMetres">—</div>
+              </div>
+            </div>
+          </div>
+          <div class="error-msg" id="mpError" style="text-align:left;"></div>
+          <button class="btn btn-primary" onclick="startModelProcess()">🚀 Démarrer la commande</button>
+        </div>
+      </div>
+
+      <!-- COMMANDES HISTORY SUB-TAB -->
+      <div id="pTabHistory" style="display:none;">
+        <div class="sync-bar">
+          <div class="sync-dot" id="cmdSyncDot"></div>
+          <span id="cmdSyncText">Chargement des commandes...</span>
+        </div>
+        <div id="cmdHistoryList">
+          <div class="loading-wrap"><div class="spinner"></div>Chargement...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PALETTES TAB -->
+    <div id="tabPalettes">
+      <div class="sync-bar">
+        <div class="sync-dot" id="palSyncDot"></div>
+        <span id="palSyncText">Synchronisation en cours...</span>
+      </div>
+      <div id="countersGrid" class="counters-grid"></div>
+      <div class="search-filter-row">
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="searchInput" placeholder="ID, modèle, type, statut..." oninput="applyFilters()">
+        </div>
+        <div class="filter-btn-wrap">
+          <button class="filter-btn" id="filterBtn" onclick="openFilterModal('palettes')">⚙️</button>
+          <span class="filter-badge" id="filterBadge">0</span>
+        </div>
+      </div>
+      <div class="result-info">
+        <span id="resultCountText"></span>
+        <button class="toggle-palettes-btn" id="togglePalettesBtn" onclick="togglePalettesVisibility()">👁️ Masquer</button>
+      </div>
+      <div id="palettesContainer" class="palettes-container">
+        <div id="paletteList"></div>
+      </div>
+    </div>
+
+    <!-- HISTORY TAB -->
+    <div id="tabHistory" style="display:none;">
+      <div class="search-filter-row">
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="historySearchInput" placeholder="ID, opérateur, statuts..." oninput="applyHistoryFilters()">
+        </div>
+        <div class="filter-btn-wrap">
+          <button class="filter-btn" id="historyFilterBtn" onclick="openFilterModal('history')">⚙️</button>
+          <span class="filter-badge" id="historyFilterBadge">0</span>
+        </div>
+      </div>
+      <div class="result-info" id="historyResultInfo"></div>
+      <div id="historyList"></div>
+    </div>
+  </div>
+
+  <div class="bottom-bar" id="controllerBottomBar" style="display:flex;">
+    <button class="btn btn-secondary" onclick="openScanner()" style="flex:1">📷 Scanner</button>
+    <button class="btn btn-primary" onclick="openAddForm()" style="flex:1">➕ Ajouter</button>
+  </div>
+</div>
+
+<!-- SCANNER MODAL -->
+<div class="modal-overlay" id="scannerModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🔍 Identifier une palette</div>
+    <div class="mode-tabs">
+      <button class="mode-tab active" id="modeCamera" onclick="setScanMode('camera')">📷 Caméra QR</button>
+      <button class="mode-tab" id="modeManual" onclick="setScanMode('manual')">⌨️ Saisie manuelle</button>
+    </div>
+    <div id="cameraModeContent">
+      <div id="qr-reader-container"><div id="qr-reader"></div></div>
+      <p class="scan-hint">📱 Pointez la caméra vers le QR code de la palette</p>
+    </div>
+    <div id="manualModeContent" style="display:none;">
+      <div class="form-group">
+        <label>ID Palette</label>
+        <input type="text" id="manualIdInput" placeholder="Ex: 280326143022" autocomplete="off"
+          style="font-size:18px;font-family:monospace;letter-spacing:2px;" inputmode="numeric">
+      </div>
+      <button class="btn btn-primary" onclick="submitManualScan()">🔎 Rechercher</button>
+    </div>
+    <div style="margin-top:16px;">
+      <button class="btn btn-secondary" onclick="closeScanner()">✕ Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- FILTER MODAL -->
+<div class="modal-overlay" id="filterModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">⚙️ Filtrer</div>
+    <div id="filterModalContent"></div>
+    <div style="margin-top:16px;">
+      <button class="btn btn-primary" onclick="closeModal('filterModal');applyCurrentFilters()">✓ Appliquer</button>
+      <button class="btn btn-secondary" style="margin-top:8px;" onclick="clearAllFilters()">🗑️ Effacer tous les filtres</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCAN RESULT MODAL -->
+<div class="modal-overlay" id="scanResultModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Mise à jour du statut</div>
+    <div id="scanResultContent"></div>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div id="addModalContent"></div>
+  </div>
+</div>
+
+<!-- CONFIRM -->
+<div class="confirm-overlay" id="confirmDialog">
+  <div class="confirm-box">
+    <div class="confirm-icon" id="confirmIcon">⚠️</div>
+    <h3 id="confirmTitle">Confirmer</h3>
+    <p id="confirmMsg">Êtes-vous sûr ?</p>
+    <div class="confirm-actions">
+      <button class="btn btn-secondary btn-sm" onclick="closeConfirm()">Annuler</button>
+      <button class="btn btn-danger btn-sm" id="confirmOkBtn">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx8c9OiqWqLDmZ7i5t4TCZM7DXvS3sAm82oX7qPM-V_saBLY_jPIN3vhyGz9xCblVnm/exec';
+
+// STATE
+let currentUser = null;
+let allPalettes = [];
+let allHistory = [];
+let allCommandes = [];
+let html5QrCodeScanner = null;
+let currentScanMode = 'camera';
+let activeFilters = {};
+let activeHistoryFilters = {};
+let currentFilterType = 'palettes';
+let palettesVisible = true;
+let dateFilterMin = '';
+let dateFilterMax = '';
+let editMode = false;
+let editPaletteId = null;
+
+// Process state
+let mpOrder = null;
+let mpTickInterval = null;
+let mpSaveInterval = null;
+let mpRTInterval = null;
+let mpOrderIdCounter = 1;
+let currentProcessTab = 'dashboard';
+
+const MODELS = ['Hayder', 'Jaden', 'Jad', 'Typo'];
+const STATUSES = ['P_Brut', 'P_Stocke', 'P_Vendu', 'P_Plastifie'];
+const FILTER_FIELDS = [
+  { key: 'Type',      label: 'Type' },
+  { key: 'Statut',    label: 'Statut' },
+  { key: 'Model',     label: 'Modèle' },
+  { key: 'Choix',     label: 'Choix' },
+  { key: 'Operateur', label: 'Opérateur' },
+];
+const HISTORY_FILTER_FIELDS = [
+  { key: 'ID_Palette',    label: 'ID Palette' },
+  { key: 'Ancien_Statut', label: 'Ancien Statut' },
+  { key: 'Nouveau_Statut',label: 'Nouveau Statut' },
+  { key: 'Operateur',     label: 'Opérateur' },
+  { key: 'Role',          label: 'Rôle' },
+];
+
+// SHEETS API
+async function fetchSheet(name) {
+  const url = `${APPS_SCRIPT_URL}?action=read&sheet=${encodeURIComponent(name)}&t=${Date.now()}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Erreur lecture: ' + name);
+  const json = await res.json();
+  if (json.error) throw new Error(json.error);
+  return json.data || [];
+}
+
+async function writeSheet(payload) {
+  const form = new FormData();
+  form.append('payload', JSON.stringify(payload));
+  const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: form });
+  if (!res.ok) throw new Error('Erreur réseau: ' + res.status);
+  const text = await res.text();
+  let json;
+  try { json = JSON.parse(text); } catch(e) { throw new Error('Réponse invalide du serveur'); }
+  if (json.error) throw new Error(json.error);
+  return json;
+}
+
+// AUTH
+function showLogoutConfirm() {
+  showConfirm('🚪', 'Déconnexion', 'Voulez-vous vraiment vous déconnecter ?', () => logout());
+}
+
+async function doLogin() {
+  const user = document.getElementById('loginUser').value.trim();
+  const pwd  = document.getElementById('loginPwd').value.trim();
+  document.getElementById('loginError').textContent = '';
+  document.getElementById('loginBtnText').innerHTML = '<span class="spinner"></span>';
+  try {
+    const users = await fetchSheet('Utilisateurs');
+    const found = users.find(u => u.User?.toLowerCase() === user.toLowerCase() && String(u.Mdp) === pwd);
+    if (!found) throw new Error('Identifiants incorrects');
+    currentUser = found;
+    document.getElementById('loginBtnText').textContent = 'Connexion';
+    showUserScreen();
+  } catch(e) {
+    document.getElementById('loginBtnText').textContent = 'Connexion';
+    document.getElementById('loginError').textContent = e.message || 'Erreur de connexion';
+  }
+}
+
+function showUserScreen() {
+  hideAll();
+  if (currentUser.Role === 'Operator') {
+    document.getElementById('operatorScreen').classList.add('active');
+    document.getElementById('opName').textContent = currentUser.Nom;
+    document.getElementById('opAvatar').textContent = currentUser.Nom[0];
+  } else {
+    document.getElementById('controllerScreen').classList.add('active');
+    document.getElementById('ctrlName').textContent = currentUser.Nom;
+    document.getElementById('ctrlAvatar').textContent = currentUser.Nom[0];
+    loadAll();
+    startRealTimePolling();
+  }
+}
+
+function hideAll() { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); }
+
+function logout() {
+  stopScanner();
+  stopRealTimePolling();
+  stopMpIntervals();
+  currentUser = null;
+  activeFilters = {};
+  activeHistoryFilters = {};
+  dateFilterMin = '';
+  dateFilterMax = '';
+  mpOrder = null;
+  allCommandes = [];
+  if (html5QrCodeScanner) { html5QrCodeScanner.clear(); html5QrCodeScanner = null; }
+  closeScanner();
+  hideAll();
+  document.getElementById('loginScreen').classList.add('active');
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPwd').value = '';
+}
+
+// REAL-TIME POLLING
+function startRealTimePolling() {
+  stopRealTimePolling();
+  mpRTInterval = setInterval(() => silentRefresh(), 20000);
+}
+function stopRealTimePolling() { if (mpRTInterval) { clearInterval(mpRTInterval); mpRTInterval = null; } }
+async function silentRefresh() {
+  try {
+    setSyncState('syncing');
+    const [palettes, history, commandes] = await Promise.all([
+      fetchSheet('Palettes'),
+      fetchSheet('Historique'),
+      fetchSheet('Commandes'),
+    ]);
+    allPalettes  = palettes;
+    allHistory   = history;
+    allCommandes = commandes;
+    renderCounters();
+    applyFilters();
+    applyHistoryFilters();
+    if (currentProcessTab === 'history') renderCommandesHistory();
+    // Auto-complete order at 100%
+    if (mpOrder && mpTickInterval) {
+      const counterData = await fetchSheet('Counter');
+      const cv = parseInt((counterData[0]?.['Tile counter'] || counterData[0]?.['tile counter'] || counterData[0]?.[Object.keys(counterData[0]||{})[0]] || '0').toString().replace(/\D/g,'')) || 0;
+      mpOrder._currentCounter = cv;
+      const produced = Math.max(0, cv - mpOrder._counterBase);
+      const pct = mpOrder._totalTiles > 0 ? Math.min(100, (produced / mpOrder._totalTiles) * 100) : 0;
+      mpOrder['Progression(%)'] = pct.toFixed(2);
+      mpOrder._producedTiles = produced;
+      if (pct > 0.1 && pct < 100) {
+        const elapsed = (Date.now() - mpOrder._startMs) / 3600000;
+        const remaining = ((100 - pct) / pct) * elapsed * 3600000;
+        mpOrder.End_Time = formatDate(new Date(Date.now() + remaining));
+      } else if (pct >= 100) {
+        mpOrder.End_Time = formatDate(new Date());
+        // AUTO-END at 100%
+        await stopModelProcess();
+        showToast('✅ Commande terminée automatiquement (100%)');
+      }
+    }
+    setSyncState('ok');
+  } catch(e) {
+    setSyncState('error');
+  }
+}
+function setSyncState(state) {
+  const dots = ['palSyncDot', 'cmdSyncDot'];
+  const texts = { palSyncDot: 'palSyncText', cmdSyncDot: 'cmdSyncText' };
+  dots.forEach(dotId => {
+    const dot = document.getElementById(dotId);
+    const txt = document.getElementById(texts[dotId]);
+    if (!dot) return;
+    dot.className = 'sync-dot' + (state === 'syncing' ? ' syncing' : state === 'error' ? ' error' : '');
+    if (txt) {
+      if (state === 'ok')      txt.textContent = 'Synchronisé à ' + new Date().toLocaleTimeString('fr-FR');
+      if (state === 'syncing') txt.textContent = 'Synchronisation...';
+      if (state === 'error')   txt.textContent = '⚠️ Erreur de synchronisation';
+    }
+  });
+}
+
+// DATA LOADING
+async function loadAll() {
+  document.getElementById('paletteList').innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Chargement...</div>';
+  setSyncState('syncing');
+  try {
+    [allPalettes, allHistory, allCommandes] = await Promise.all([
+      fetchSheet('Palettes'),
+      fetchSheet('Historique'),
+      fetchSheet('Commandes'),
+    ]);
+    renderCounters();
+    applyFilters();
+    applyHistoryFilters();
+    setSyncState('ok');
+    if (!mpOrder) mpTryRestoreFromCommandes();
+  } catch(e) {
+    setSyncState('error');
+    document.getElementById('paletteList').innerHTML = `<div class="empty"><div class="e-icon">⚠️</div><p>${e.message}</p></div>`;
+  }
+}
+async function refreshData() {
+    setSyncState('syncing');
+    try {
+        const [palettes, history, commandes] = await Promise.all([
+            fetchSheet('Palettes'),
+            fetchSheet('Historique'),
+            fetchSheet('Commandes'),
+        ]);
+        allPalettes = palettes || [];
+        allHistory = history || [];
+        allCommandes = commandes || [];
+        renderCounters();
+        applyFilters();
+        applyHistoryFilters();
+        if (currentProcessTab === 'history') renderCommandesHistory();
+        setSyncState('ok');
+    } catch(e) {
+        console.error('Refresh error:', e);
+        setSyncState('error');
+        showToast('Erreur de synchronisation', true);
+    }
+}
+
+// TAB SWITCHING
+function switchTab(tab) {
+  const tabs = { process: 'tabBtnProcess', palettes: 'tabBtnPalettes', history: 'tabBtnHistory' };
+  Object.entries(tabs).forEach(([k,id]) => document.getElementById(id)?.classList.toggle('active', k === tab));
+  document.getElementById('tabProcess').style.display  = tab === 'process'  ? 'block' : 'none';
+  document.getElementById('tabPalettes').style.display = tab === 'palettes' ? 'block' : 'none';
+  document.getElementById('tabHistory').style.display  = tab === 'history'  ? 'block' : 'none';
+  const bottomBar = document.getElementById('controllerBottomBar');
+  if (bottomBar) bottomBar.style.display = tab === 'palettes' ? 'flex' : 'none';
+  if (tab === 'history') applyHistoryFilters();
+  if (tab === 'process') loadProcessTab();
+}
+function switchProcessTab(sub) {
+  currentProcessTab = sub;
+  document.getElementById('pSubDash').classList.toggle('active', sub === 'dashboard');
+  document.getElementById('pSubHistory').classList.toggle('active', sub === 'history');
+  document.getElementById('pTabDashboard').style.display = sub === 'dashboard' ? 'block' : 'none';
+  document.getElementById('pTabHistory').style.display   = sub === 'history'   ? 'block' : 'none';
+  if (sub === 'history') loadCommandesHistory();
+}
+async function loadProcessTab() {
+  if (mpOrder) {
+    mpUpdateDashboardFields();
+  } else {
+    await loadCommandesData();
+    mpTryRestoreFromCommandes();
+  }
+  if (currentProcessTab === 'history') loadCommandesHistory();
+}
+async function loadCommandesData() {
+  try { allCommandes = await fetchSheet('Commandes'); } catch(e) { /* silent */ }
+}
+async function loadCommandesHistory() {
+  const listEl = document.getElementById('cmdHistoryList');
+  const dot    = document.getElementById('cmdSyncDot');
+  const txt    = document.getElementById('cmdSyncText');
+  if (dot) dot.className = 'sync-dot syncing';
+  if (txt) txt.textContent = 'Chargement des commandes...';
+  listEl.innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Chargement...</div>';
+  try {
+    allCommandes = await fetchSheet('Commandes');
+    renderCommandesHistory();
+    if (dot) dot.className = 'sync-dot';
+    if (txt) txt.textContent = 'Synchronisé à ' + new Date().toLocaleTimeString('fr-FR');
+  } catch(e) {
+    listEl.innerHTML = `<div class="empty"><div class="e-icon">⚠️</div><p>${e.message}</p></div>`;
+    if (dot) dot.className = 'sync-dot error';
+    if (txt) txt.textContent = '⚠️ Erreur de chargement';
+  }
+}
+function renderCommandesHistory() {
+  const listEl = document.getElementById('cmdHistoryList');
+  if (!allCommandes || !allCommandes.length) {
+    listEl.innerHTML = '<div class="empty"><div class="e-icon">📋</div><p>Aucune commande enregistrée</p></div>';
+    return;
+  }
+  const sorted = [...allCommandes].reverse();
+  listEl.innerHTML = sorted.map(cmd => {
+    const isActive = !cmd.End_Time || cmd.End_Time === '—' || cmd.End_Time === '';
+    const pct = parseFloat(cmd['Progression(%)']) || 0;
+    const canResume = isActive && !mpOrder;
+    return `
+      <div class="cmd-card">
+        <div class="cmd-card-header">
+          <span class="cmd-id">${cmd.Order_ID || '—'}</span>
+          <span class="${isActive ? 'cmd-badge-active' : 'cmd-badge-done'}">${isActive ? '🟢 Active' : '✅ Terminée'}</span>
+        </div>
+        <div class="cmd-info">
+          <div class="cmd-info-item">Modèle: <span>${cmd.Model_Name || '—'}</span></div>
+          <div class="cmd-info-item">Type: <span>${cmd.Type || '—'}</span></div>
+          <div class="cmd-info-item">Palettes: <span>${cmd.Order_Palettes || '—'}</span></div>
+          <div class="cmd-info-item">m²: <span>${cmd.Order_Metres || '—'}</span></div>
+          <div class="cmd-info-item">Début: <span style="font-size:11px;">${cmd.Start_Time || '—'}</span></div>
+          <div class="cmd-info-item">Fin: <span style="font-size:11px;">${cmd.End_Time || '—'}</span></div>
+          <div class="cmd-info-item" style="grid-column:span 2;">
+            <span>Progression: </span><span>${pct.toFixed(1)}%</span>
+            <div style="margin-top:4px;background:var(--surface2);border-radius:100px;height:6px;overflow:hidden;">
+              <div style="width:${Math.min(pct,100)}%;height:100%;background:linear-gradient(90deg,var(--accent),var(--green));border-radius:100px;"></div>
+            </div>
+          </div>
+        </div>
+        ${canResume ? `<button class="cmd-resume-btn" onclick="resumeCommande('${cmd.Order_ID}')">▶️ Reprendre cette commande</button>` : ''}
+        ${isActive && mpOrder ? '<div style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center;">Une commande est déjà active</div>' : ''}
+      </div>`;
+  }).join('');
+}
+async function resumeCommande(orderId) {
+  const row = allCommandes.find(c => c.Order_ID === orderId);
+  if (!row) { showToast('Commande introuvable', true); return; }
+  showConfirm('▶️', 'Reprendre', `Reprendre la commande ${orderId} ?`, async () => {
+    await mpRestoreOrder(row);
+    switchProcessTab('dashboard');
+    showToast('Commande reprise ✓');
+  });
+}
+function mpTryRestoreFromCommandes() {
+  if (mpOrder) return;
+  if (!allCommandes || !allCommandes.length) { mpHideDashboard(); return; }
+  const active = [...allCommandes].reverse().find(r => !r.End_Time || r.End_Time === '—' || r.End_Time === '');
+  if (!active) { mpHideDashboard(); return; }
+  mpRestoreOrder(active);
+}
+async function mpRestoreOrder(active) {
+  let counterVal = 0;
+  try {
+    const counterData = await fetchSheet('Counter');
+    counterVal = parseInt((counterData[0]?.['Tile counter'] || counterData[0]?.['tile counter'] || counterData[0]?.[Object.keys(counterData[0]||{})[0]] || '0').toString().replace(/\D/g,'')) || 0;
+  } catch(e) { /* silent */ }
+  const palettes   = Number(active.Order_Palettes) || 0;
+  const cartons    = Number(active.Palette_Cartons_Number) || 0;
+  const tiles      = Number(active.Carton_Tile_Number) || 0;
+  const totalTiles = palettes * cartons * tiles;
+  let startMs = Date.now();
+  if (active.Start_Time) {
+    const parts = active.Start_Time.split(' ');
+    if (parts.length === 2) {
+      const [d,m,y] = parts[0].split('/');
+      const [hh,mm,ss] = parts[1].split(':');
+      const parsed = new Date(`${y}-${m}-${d}T${hh}:${mm}:${ss}`);
+      if (!isNaN(parsed)) startMs = parsed.getTime();
+    }
+  }
+  const storedPct = parseFloat(active['Progression(%)']) || 0;
+  let counterBase = counterVal;
+  if (storedPct > 0 && totalTiles > 0) {
+    counterBase = counterVal - Math.round((storedPct / 100) * totalTiles);
+  }
+  const produced = Math.max(0, counterVal - counterBase);
+  const pct = totalTiles > 0 ? Math.min(100, (produced / totalTiles) * 100) : 0;
+  mpOrder = {
+    Order_ID:               active.Order_ID,
+    Model_Name:             active.Model_Name,
+    Order_Palettes:         palettes,
+    Order_Metres:           Number(active.Order_Metres) || 0,
+    Start_Time:             active.Start_Time,
+    _startMs:               startMs,
+    End_Time:               active.End_Time || '—',
+    'Delay(h)':             active['Delay(h)'] || '0.00',
+    'Progression(%)':       pct.toFixed(2),
+    Type:                   active.Type,
+    Tile_Width:             Number(active.Tile_Width) || 0,
+    Tile_height:            Number(active.Tile_height) || 0,
+    Carton_Tile_Number:     tiles,
+    'Palette_Metres(m)':    Number(active['Palette_Metres(m)']) || 0,
+    Palette_Cartons_Number: cartons,
+    _totalTiles:            totalTiles,
+    _counterBase:           counterBase,
+    _currentCounter:        counterVal,
+    _producedTiles:         produced,
+  };
+  if (!mpTickInterval) mpStartTick();
+  if (!mpSaveInterval) mpSaveInterval = setInterval(() => mpSaveToSheet(), 15000);
+  mpShowDashboard();
+  mpUpdateDashboardFields();
+}
+
+// MODEL PROCESS — START NEW
+function mpGenOrderId() {
+  const d = new Date();
+  return 'CMD-' + [d.getDate(),d.getMonth()+1,d.getFullYear()%100].map(n=>String(n).padStart(2,'0')).join('') + '-' + String(mpOrderIdCounter++).padStart(3,'0');
+}
+function mpStep(id, delta, min, max) {
+  const inp = document.getElementById(id);
+  let v = parseInt(inp.value) || (delta > 0 ? min - 1 : max + 1);
+  inp.value = Math.min(max, Math.max(min, v + delta));
+  mpUpdatePreview();
+}
+function mpUpdatePreview() {
+  const palettes = parseInt(document.getElementById('mp_palettes')?.value) || 0;
+  const w        = parseFloat(document.getElementById('mp_tileWidth')?.value) || 0;
+  const h        = parseFloat(document.getElementById('mp_tileHeight')?.value) || 0;
+  const cartons  = parseInt(document.getElementById('mp_cartonsPerPalette')?.value) || 0;
+  const tiles    = parseInt(document.getElementById('mp_tilesPerCarton')?.value) || 0;
+  const totalTiles   = palettes * cartons * tiles;
+  const paletteMetre = w && h && cartons && tiles ? +((w/100) * (h/100) * tiles * cartons).toFixed(4) : 0;
+  const orderMetres  = +(paletteMetre * palettes).toFixed(4);
+  document.getElementById('prev_totalTiles').textContent   = totalTiles  || '—';
+  document.getElementById('prev_paletteMetre').textContent = paletteMetre ? paletteMetre + ' m²' : '—';
+  document.getElementById('prev_orderMetres').textContent  = orderMetres  ? orderMetres  + ' m²' : '—';
+}
+async function startModelProcess() {
+  const modelName = document.getElementById('mp_modelName').value.trim();
+  const type      = document.getElementById('mp_type').value;
+  const palettes  = parseInt(document.getElementById('mp_palettes').value);
+  const w         = parseFloat(document.getElementById('mp_tileWidth').value);
+  const h         = parseFloat(document.getElementById('mp_tileHeight').value);
+  const cartons   = parseInt(document.getElementById('mp_cartonsPerPalette').value);
+  const tiles     = parseInt(document.getElementById('mp_tilesPerCarton').value);
+  const errEl     = document.getElementById('mpError');
+  errEl.textContent = '';
+  if (!modelName) { errEl.textContent = '⚠️ Veuillez saisir le nom du modèle.'; return; }
+  if (!type) { errEl.textContent = '⚠️ Veuillez sélectionner le type.'; return; }
+  if (!palettes || palettes < 1) { errEl.textContent = '⚠️ Nombre de palettes invalide.'; return; }
+  if (!w || !h) { errEl.textContent = '⚠️ Veuillez saisir les dimensions du carrelage.'; return; }
+  if (!cartons || cartons < 10 || cartons > 70) { errEl.textContent = '⚠️ Cartons/palette doit être entre 10 et 70.'; return; }
+  if (!tiles || tiles < 4 || tiles > 20) { errEl.textContent = '⚠️ Tuiles/carton doit être entre 4 et 20.'; return; }
+  const paletteMetre = +((w/100) * (h/100) * tiles * cartons).toFixed(4);
+  const orderMetres  = +(paletteMetre * palettes).toFixed(4);
+  const totalTiles   = palettes * cartons * tiles;
+  let counterVal = 0;
+  try {
+    const counterData = await fetchSheet('Counter');
+    counterVal = parseInt((counterData[0]?.['Tile counter'] || counterData[0]?.['tile counter'] || counterData[0]?.[Object.keys(counterData[0]||{})[0]] || '0').toString().replace(/\D/g,'')) || 0;
+  } catch(e) { console.warn('Counter fetch failed', e); }
+  mpOrder = {
+    Order_ID:               mpGenOrderId(),
+    Model_Name:             modelName,
+    Order_Palettes:         palettes,
+    Order_Metres:           orderMetres,
+    Start_Time:             formatDate(new Date()),
+    _startMs:               Date.now(),
+    End_Time:               '—',
+    'Delay(h)':             '0.00',
+    'Progression(%)':       '0.00',
+    Type:                   type,
+    Tile_Width:             w,
+    Tile_height:            h,
+    Carton_Tile_Number:     tiles,
+    'Palette_Metres(m)':    paletteMetre,
+    Palette_Cartons_Number: cartons,
+    _totalTiles:            totalTiles,
+    _counterBase:           counterVal,
+    _currentCounter:        counterVal,
+    _producedTiles:         0,
+  };
+  mpStartTick();
+  mpShowDashboard();
+  mpSaveToSheet();
+  mpSaveInterval = setInterval(() => mpSaveToSheet(), 15000);
+}
+function mpStartTick() {
+  if (mpTickInterval) clearInterval(mpTickInterval);
+  mpTickInterval = setInterval(async () => {
+    if (!mpOrder) return;
+    const elapsed = (Date.now() - mpOrder._startMs) / 3600000;
+    mpOrder['Delay(h)'] = elapsed.toFixed(2);
+    try {
+      const counterData = await fetchSheet('Counter');
+      const cv = parseInt((counterData[0]?.['Tile counter'] || counterData[0]?.['tile counter'] || counterData[0]?.[Object.keys(counterData[0]||{})[0]] || '0').toString().replace(/\D/g,'')) || 0;
+      mpOrder._currentCounter = cv;
+      const produced = Math.max(0, cv - mpOrder._counterBase);
+      const pct = Math.min(100, (mpOrder._totalTiles > 0 ? (produced / mpOrder._totalTiles) : 0) * 100);
+      mpOrder['Progression(%)'] = pct.toFixed(2);
+      mpOrder._producedTiles = produced;
+      // ONLY update End_Time if NOT completed yet, and keep it as estimate
+      if (pct < 100) {
+        if (pct > 0.1) {
+          const remaining = ((100 - pct) / pct) * elapsed * 3600000;
+          mpOrder.End_Time = formatDate(new Date(Date.now() + remaining));
+        } else {
+          mpOrder.End_Time = '—';
+        }
+      }
+      // If completed, set final end time and stop
+      if (pct >= 100 && mpTickInterval) {
+        mpOrder.End_Time = formatDate(new Date());
+        await stopModelProcess();
+        showToast('✅ Commande terminée automatiquement (100%)');
+      }
+    } catch(e) { /* silent */ }
+    mpUpdateDashboardFields();
+  }, 15000);
+  mpUpdateDashboardFields();
+}
+function mpUpdateDashboardFields() {
+  if (!mpOrder) return;
+  document.getElementById('dash_orderID').textContent          = mpOrder.Order_ID;
+  document.getElementById('dash_modelName').textContent        = mpOrder.Model_Name;
+  document.getElementById('dash_type').textContent             = mpOrder.Type;
+  document.getElementById('dash_palettesCmd').textContent      = mpOrder.Order_Palettes + ' pal.';
+  document.getElementById('dash_tilesPerCarton').textContent   = mpOrder.Carton_Tile_Number + ' tuiles';
+  document.getElementById('dash_cartonsPerPalette').textContent= mpOrder.Palette_Cartons_Number + ' cartons';
+  document.getElementById('dash_dims').textContent             = mpOrder.Tile_Width + ' × ' + mpOrder.Tile_height + ' cm';
+  document.getElementById('dash_paletteMetre').textContent     = mpOrder['Palette_Metres(m)'] + ' m²';
+  document.getElementById('dash_orderMetres').textContent      = mpOrder.Order_Metres + ' m²';
+  document.getElementById('dash_startTime').textContent        = mpOrder.Start_Time;
+  document.getElementById('dash_delay').textContent            = mpOrder['Delay(h)'] + ' h';
+  document.getElementById('dash_endTime').textContent          = mpOrder.End_Time;
+  document.getElementById('dash_counter').textContent          = (mpOrder._currentCounter || mpOrder._counterBase).toLocaleString();
+  document.getElementById('dash_totalTiles').textContent       = mpOrder._totalTiles.toLocaleString();
+  const pct = parseFloat(mpOrder['Progression(%)']) || 0;
+  document.getElementById('dash_progressBar').style.width      = Math.min(pct, 100) + '%';
+  document.getElementById('dash_progressPct').textContent      = pct.toFixed(2) + '%';
+  document.getElementById('dash_progressFrac').textContent     = (mpOrder._currentCounter || mpOrder._counterBase).toLocaleString() + ' / ' + mpOrder._totalTiles.toLocaleString() + ' tuiles';
+}
+async function mpSaveToSheet() {
+  if (!mpOrder) return;
+  const statusEl = document.getElementById('mpSaveStatus');
+  if (statusEl) statusEl.textContent = '⏳ Sauvegarde...';
+  try {
+    const row = {
+      Order_ID:               String(mpOrder.Order_ID),
+      Model_Name:             String(mpOrder.Model_Name),
+      Order_Palettes:         Number(mpOrder.Order_Palettes),
+      Order_Metres:           Number(mpOrder.Order_Metres),
+      Start_Time:             String(mpOrder.Start_Time),
+      End_Time:               String(mpOrder.End_Time || '—'),
+      'Delay(h)':             String(mpOrder['Delay(h)']),
+      'Progression(%)':       String(mpOrder['Progression(%)']),
+      Type:                   String(mpOrder.Type),
+      Tile_Width:             Number(mpOrder.Tile_Width),
+      Tile_height:            Number(mpOrder.Tile_height),
+      Carton_Tile_Number:     Number(mpOrder.Carton_Tile_Number),
+      'Palette_Metres(m)':    Number(mpOrder['Palette_Metres(m)']),
+      Palette_Cartons_Number: Number(mpOrder.Palette_Cartons_Number),
+    };
+    await writeSheet({ action: 'upsert', sheet: 'Commandes', key: 'Order_ID', data: row });
+    if (statusEl) statusEl.textContent = '✅ Sauvegardé à ' + new Date().toLocaleTimeString('fr-FR');
+  } catch(e) {
+    if (statusEl) statusEl.textContent = '❌ Erreur: ' + e.message;
+    showToast('Erreur sauvegarde: ' + e.message, true);
+  }
+}
+function mpShowDashboard() {
+  document.getElementById('mpNoOrder').style.display    = 'none';
+  document.getElementById('mpDashboard').style.display  = 'block';
+  document.getElementById('mpConfigForm').style.display = 'none';
+}
+function mpHideDashboard() {
+  document.getElementById('mpNoOrder').style.display    = 'block';
+  document.getElementById('mpDashboard').style.display  = 'none';
+  document.getElementById('mpConfigForm').style.display = 'block';
+}
+function confirmStopOrder() {
+  if (!mpOrder) return;
+  const pct = parseFloat(mpOrder['Progression(%)']) || 0;
+  if (pct >= 100) {
+    showConfirm('⏹', 'Terminer', 'La commande est à 100%. Voulez-vous la clôturer ?', () => stopModelProcess());
+  } else {
+    showConfirm('⚠️', 'Arrêter commande', `La commande est à ${pct.toFixed(1)}%. Voulez-vous vraiment l'arrêter maintenant ? (Terminée partiellement)`, () => stopModelProcess());
+  }
+}
+async function stopModelProcess() {
+  if (!mpOrder) return;
+  stopMpIntervals();
+  // Only set end time when stopping
+  mpOrder.End_Time = formatDate(new Date());
+  await mpSaveToSheet();
+  mpOrder = null;
+  mpHideDashboard();
+  showToast('Commande clôturée ✓');
+  allCommandes = await fetchSheet('Commandes').catch(() => allCommandes);
+  if (currentProcessTab === 'history') renderCommandesHistory();
+}
+function stopMpIntervals() {
+  if (mpTickInterval) { clearInterval(mpTickInterval); mpTickInterval = null; }
+  if (mpSaveInterval) { clearInterval(mpSaveInterval); mpSaveInterval = null; }
+}
+
+// SCANNER & OTHER UTILITIES
+function stopScanner() { if (html5QrCodeScanner) { try { html5QrCodeScanner.clear(); } catch(e) {} html5QrCodeScanner = null; } }
+function startHtml5Scanner() { stopScanner(); const container = document.getElementById('qr-reader'); if (!container) return; html5QrCodeScanner = new Html5Qrcode("qr-reader"); const config = { fps: 15, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 }; html5QrCodeScanner.start({ facingMode: "environment" }, config, (decodedText) => { stopScanner(); closeScanner(); handleScan(decodedText); }, () => {} ).catch(() => { showToast("Impossible d'accéder à la caméra", true); setScanMode('manual'); }); }
+function setScanMode(mode) { currentScanMode = mode; document.getElementById('modeCamera').classList.toggle('active', mode === 'camera'); document.getElementById('modeManual').classList.toggle('active', mode === 'manual'); document.getElementById('cameraModeContent').style.display = mode === 'camera' ? 'block' : 'none'; document.getElementById('manualModeContent').style.display = mode === 'manual' ? 'block' : 'none'; if (mode === 'camera') startHtml5Scanner(); else { stopScanner(); setTimeout(() => document.getElementById('manualIdInput')?.focus(), 150); } }
+async function openScanner() { await refreshData(); openModal('scannerModal'); document.getElementById('manualIdInput').value = ''; currentScanMode = 'camera'; document.getElementById('modeCamera').classList.add('active'); document.getElementById('modeManual').classList.remove('active'); document.getElementById('cameraModeContent').style.display = 'block'; document.getElementById('manualModeContent').style.display = 'none'; startHtml5Scanner(); }
+function closeScanner() { stopScanner(); closeModal('scannerModal'); }
+function submitManualScan() { const id = document.getElementById('manualIdInput').value.trim(); if (!id) { showToast('Veuillez saisir un ID', true); return; } stopScanner(); closeScanner(); handleScan(id); }
+async function handleScan(scannedId) {
+    try { await refreshData(); } catch(e) { console.warn('Refresh failed, using existing data'); }
+    const palettesList = allPalettes || [];
+    let palette = palettesList.find(p => String(p.ID_Palette) === String(scannedId));
+    if (!palette) { showToast('Palette non trouvée: ' + scannedId, true); return; }
+    const statusOptions = ['P_Vendu', 'P_Stocke', 'P_Plastifie'].map(s => {
+        const isChecked = (palette.Statut === s) ? 'checked' : '';
+        return `<label style="display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--border);border-radius:12px;cursor:pointer;">
+            <input type="radio" name="newStatus" value="${s}" ${isChecked} style="accent-color:var(--accent);">
+            <span class="status-badge status-${s}">${s}</span>
+        </label>`;
+    }).join('');
+    document.getElementById('scanResultContent').innerHTML = `
+        <div class="detail-row">
+            <span class="detail-label">ID Palette</span>
+            <span class="detail-value" style="font-family:monospace;color:var(--accent)">${palette.ID_Palette}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Modèle</span>
+            <span class="detail-value">${palette.Model || '—'}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Statut actuel</span>
+            <span class="detail-value"><span class="status-badge status-${palette.Statut}">${palette.Statut}</span></span>
+        </div>
+        <hr class="divider">
+        <p class="section-title">Nouveau Statut *</p>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
+            ${statusOptions}
+        </div>
+        <button class="btn btn-primary" onclick="submitStatusChange('${palette.ID_Palette}','${palette.Statut}')">✓ Confirmer</button>
+        <button class="btn btn-secondary" style="margin-top:10px;" onclick="closeModal('scanResultModal')">✕ Annuler</button>
+    `;
+    openModal('scanResultModal');
+}
+
+async function submitStatusChange(id, ancienStatut) {
+    const sel = document.querySelector('input[name="newStatus"]:checked');
+    if (!sel) { showToast('Veuillez choisir un statut', true); return; }
+    const newStatut = sel.value;
+    if (ancienStatut === newStatut) { showToast('Le statut est déjà ' + newStatut, true); closeModal('scanResultModal'); return; }
+    const now = formatDate(new Date());
+    try {
+        // Use the existing updateStatus action which works reliably
+        await writeSheet({ action: 'updateStatus', sheet: 'Palettes', id: id, statut: newStatut });
+        await writeSheet({ action: 'add', sheet: 'Historique', data: { 
+            ID_Palette: id, Ancien_Statut: ancienStatut, Nouveau_Statut: newStatut, 
+            Date_Scan: now, Operateur: currentUser?.Nom || 'Inconnu', Role: currentUser?.Role || 'Inconnu', Coordonnees: currentUser?.Role || '' 
+        } });
+        closeModal('scanResultModal');
+        showToast(`Statut changé: ${ancienStatut} → ${newStatut} ✓`);
+        await refreshData();
+    } catch(e) {
+        console.error('Status update error:', e);
+        showToast('Erreur: ' + (e.message || 'Impossible de modifier le statut'), true);
+    }
+}
+
+function togglePalettesVisibility() { palettesVisible = !palettesVisible; const container = document.getElementById('palettesContainer'); const btn = document.getElementById('togglePalettesBtn'); palettesVisible ? (container.classList.remove('hide'), btn.innerHTML='👁️ Masquer') : (container.classList.add('hide'), btn.innerHTML='👁️ Afficher'); }
+function renderCounters() { const t=allPalettes.length, b=allPalettes.filter(p=>p.Statut==='P_Brut').length, s=allPalettes.filter(p=>p.Statut==='P_Stocke').length, v=allPalettes.filter(p=>p.Statut==='P_Vendu').length, pl=allPalettes.filter(p=>p.Statut==='P_Plastifie').length; document.getElementById('countersGrid').innerHTML = `<div class="counter-card c-total"><div class="c-label">📦 Total</div><div class="c-value">${t}</div></div><div class="counter-card c-brut"><div class="c-label">P_Brut</div><div class="c-value">${b}</div></div><div class="counter-card c-stocke"><div class="c-label">P_Stocké</div><div class="c-value">${s}</div></div><div class="counter-card c-vendu"><div class="c-label">P_Vendu</div><div class="c-value">${v}</div></div><div class="counter-card c-plastifie span2"><div class="c-label">P_Plastifié</div><div class="c-value">${pl}</div></div>`; }
+function getUnique(field, dataSource = allPalettes) { return [...new Set(dataSource.map(p => (p[field]||'').toString().trim()).filter(Boolean))].sort(); }
+function parseDateFromPalette(p) { if(!p.Date) return null; const [d,m,y]=p.Date.split(' ')[0].split('/'); return d&&m&&y?new Date(`${y}-${m}-${d}`):null; }
+function isDateInRange(p,minD,maxD){ const pd=parseDateFromPalette(p); if(!pd) return true; if(minD&&pd<minD) return false; if(maxD&&pd>maxD) return false; return true; }
+function openFilterModal(type) { currentFilterType = type; const fields = type==='palettes' ? FILTER_FIELDS : HISTORY_FILTER_FIELDS; const currentFilters = type==='palettes' ? activeFilters : activeHistoryFilters; const dataSource = type==='palettes' ? allPalettes : allHistory; let dateFilterHtml = ''; if (type==='palettes') { dateFilterHtml=`<div class="filter-section"><div class="filter-section-label">📅 Filtre par date</div><div class="date-filter-row"><div class="date-filter-group"><input type="text" id="dateMinInput" placeholder="Date min (JJ/MM/AAAA)" value="${dateFilterMin}"><div class="date-error" id="dateMinError">Format invalide</div></div><div class="date-filter-group"><input type="text" id="dateMaxInput" placeholder="Date max (JJ/MM/AAAA)" value="${dateFilterMax}"><div class="date-error" id="dateMaxError">Format invalide</div></div></div></div>`; } const chipsHtml = fields.map(f => { const vals=getUnique(f.key,dataSource); if(!vals.length)return''; const active=currentFilters[f.key]||[]; const chips=vals.map(v=>{ const cnt=dataSource.filter(item=>(item[f.key]||'').toString()===v).length; const on=active.includes(v); return`<div class="filter-chip ${on?'on':''}" onclick="toggleChip('${f.key}','${v}',this)">${v}<span class="chip-count">${cnt}</span></div>`; }).join(''); return`<div class="filter-section"><div class="filter-section-label">${f.label}</div><div class="filter-chips">${chips}</div></div>`; }).join(''); document.getElementById('filterModalContent').innerHTML = dateFilterHtml + chipsHtml; openModal('filterModal'); }
+function toggleChip(field, val, el) { const cur=currentFilterType==='palettes'?activeFilters:activeHistoryFilters; if(!cur[field])cur[field]=[]; const i=cur[field].indexOf(val); i===-1?(cur[field].push(val),el.classList.add('on')):(cur[field].splice(i,1),el.classList.remove('on')); }
+function applyCurrentFilters() { if(currentFilterType==='palettes') applyFilters(); else applyHistoryFilters(); }
+function clearAllFilters() { if(currentFilterType==='palettes'){ activeFilters={}; dateFilterMin=''; dateFilterMax=''; applyFilters(); }else{ activeHistoryFilters={}; applyHistoryFilters(); } closeModal('filterModal'); }
+function applyFilters() { const q=(document.getElementById('searchInput')?.value||'').toLowerCase().trim(); let minD=null,maxD=null; if(dateFilterMin){const[d,m,y]=dateFilterMin.split('/'); minD=new Date(`${y}-${m}-${d}`);} if(dateFilterMax){const[d,m,y]=dateFilterMax.split('/'); maxD=new Date(`${y}-${m}-${d}`); maxD.setHours(23,59,59,999);} const list=allPalettes.filter(p=>{ if(q){const s=[p.ID_Palette||'',p.Model||'',p.Type||'',p.Statut||'',p.Operateur||'',(p.Choix||'').toString()].join(' ').toLowerCase(); if(!s.includes(q))return false;} for(const[f,vals]of Object.entries(activeFilters)) if(vals.length&&!vals.includes((p[f]||'').toString()))return false; if(!isDateInRange(p,minD,maxD))return false; return true; }); renderPalettes(list); const total=Object.values(activeFilters).reduce((s,a)=>s+a.length,0); const btn=document.getElementById('filterBtn'); const badge=document.getElementById('filterBadge'); btn.classList.toggle('active',total>0); badge.textContent=total; badge.style.display=total>0?'flex':'none'; }
+function renderPalettes(list) { const ri=document.getElementById('resultCountText'); if(ri) ri.textContent=`${list.length} palette${list.length!==1?'s':''} trouvée${list.length!==1?'s':''}`; const el=document.getElementById('paletteList'); if(!list.length){el.innerHTML='<div class="empty"><div class="e-icon">📦</div><p>Aucune palette trouvée</p></div>'; return;} el.innerHTML=list.map(p=>`<div class="palette-card" onclick="openDetail('${p.ID_Palette}')"><div class="palette-card-header"><span class="palette-id">#${p.ID_Palette}</span><span class="status-badge status-${p.Statut}">${p.Statut}</span></div><div class="palette-info"><div class="info-item">Type: <span>${p.Type||'—'}</span></div><div class="info-item">Modèle: <span>${p.Model||'—'}</span></div><div class="info-item">Choix: <span>${p.Choix||'—'}</span></div><div class="info-item">N°Cartons: <span>${p.N_Cartons||'—'}</span></div></div></div>`).join(''); }
+function applyHistoryFilters() { const q=(document.getElementById('historySearchInput')?.value||'').toLowerCase().trim(); const list=allHistory.filter(h=>{ if(q){const s=[h.ID_Palette||'',h.Operateur||'',h.Ancien_Statut||'',h.Nouveau_Statut||'',h.Role||''].join(' ').toLowerCase(); if(!s.includes(q))return false;} for(const[f,vals]of Object.entries(activeHistoryFilters)) if(vals.length&&!vals.includes((h[f]||'').toString()))return false; return true; }); renderHistory(list); const total=Object.values(activeHistoryFilters).reduce((s,a)=>s+a.length,0); const btn=document.getElementById('historyFilterBtn'); const badge=document.getElementById('historyFilterBadge'); if(btn&&badge){btn.classList.toggle('active',total>0); badge.textContent=total; badge.style.display=total>0?'flex':'none';} const ri=document.getElementById('historyResultInfo'); if(ri) ri.textContent=`${list.length} entrée${list.length!==1?'s':''} trouvée${list.length!==1?'s':''}`; }
+function renderHistory(list) { const el=document.getElementById('historyList'); if(!list.length){el.innerHTML='<div class="empty"><div class="e-icon">📋</div><p>Aucun historique</p></div>'; return;} el.innerHTML=[...list].reverse().map(h=>`<div class="hist-item" onclick="openDetail('${h.ID_Palette}')"><div class="hist-header"><span class="hist-id">#${h.ID_Palette}</span><span class="hist-date">${h.Date_Scan||''}</span></div><div class="hist-flow"><span class="status-badge status-${h.Ancien_Statut}">${h.Ancien_Statut||'—'}</span><span class="hist-arrow">→</span><span class="status-badge status-${h.Nouveau_Statut}">${h.Nouveau_Statut||'—'}</span></div><div class="hist-meta"><span>👤 ${h.Operateur||'—'}</span><span class="role-badge ${h.Role==='Controle'?'role-controle':'role-operator'}" style="font-size:10px;">${h.Role||'—'}</span></div></div>`).join(''); }
+function openDetail(id) { const p=allPalettes.find(x=>String(x.ID_Palette)===String(id)); if(!p)return; const qr=`https://quickchart.io/qr?text=${p.ID_Palette}&size=200`; const rows=[['ID Palette',p.ID_Palette],['Date',p.Date],['Type',p.Type],['Modèle',p.Model],['Choix',p.Choix],['Opérateur',p.Operateur],['Contrôleur',p.Controleur],['Agent Plastification',p['Agent de Plastification']],['N° Cartons',p.N_Cartons],['Observations',p.Observations||'—']]; document.getElementById('detailContent').innerHTML=`<div class="modal-title">📦 Détail Palette</div><span class="status-badge status-${p.Statut}" style="margin-bottom:16px;display:inline-block">${p.Statut}</span>${rows.map(([l,v])=>`<div class="detail-row"><span class="detail-label">${l}</span><span class="detail-value">${v||'—'}</span></div>`).join('')}<img src="${qr}" class="qr-img" width="160" height="160"><div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;"><button class="btn btn-secondary" onclick="saveQR('${p.ID_Palette}','${qr}')">💾 Sauvegarder QR Code</button><div class="inline-btns"><button class="btn btn-secondary" onclick="showConfirm('✏️','Modifier','Modifier cette palette ?',()=>{closeModal('detailModal');openAddForm('${p.ID_Palette}')})">✏️ Modifier</button><button class="btn btn-danger" onclick="showConfirm('🗑️','Supprimer','Cette action est irréversible.',()=>deletePalette('${p.ID_Palette}'))">🗑️ Supprimer</button></div><button class="btn btn-secondary" onclick="closeModal('detailModal')">✕ Fermer</button></div>`; openModal('detailModal'); }
+async function deletePalette(id) { closeConfirm(); closeModal('detailModal'); try{ await writeSheet({action:'delete',sheet:'Palettes',id}); showToast('Palette supprimée ✓'); await refreshData(); }catch(e){ showToast('Erreur: '+e.message,true); } }
+function saveQR(id,url) { const a=document.createElement('a'); a.href=url; a.download=`QR_${id}.png`; a.target='_blank'; document.body.appendChild(a); a.click(); document.body.removeChild(a); showToast('QR Code téléchargé ✓'); }
+function existingVals(field) { return [...new Set(allPalettes.map(p => (p[field]||'').toString().trim()).filter(Boolean))].sort(); }
+function smartSelect(id, label, field, currentVal, required=false) { const vals = existingVals(field); if (!vals.length) return `<div class="form-group"><label>${label}${required?' *':''}</label><input type="text" id="${id}" value="${currentVal||''}" placeholder="${label}"></div>`; const inList = vals.includes(currentVal); return `<div class="form-group"><label>${label}${required?' *':''}</label><select id="${id}_sel" onchange="smartSelectChange('${id}')"><option value="">— Sélectionner —</option>${vals.map(v => `<option value="${v}" ${currentVal===v?'selected':''}>${v}</option>`).join('')}<option value="__new__">✏️ Nouveau...</option></select><input type="text" id="${id}" value="${!inList&&currentVal?currentVal:''}" placeholder="Nouveau ${label.toLowerCase()}" class="mt8" style="display:${!inList&&currentVal?'block':'none'}"></div>`; }
+function smartSelectChange(id){ const sel=document.getElementById(id+'_sel'); const inp=document.getElementById(id); if(sel.value==='__new__'){ inp.style.display='block'; inp.value=''; inp.focus(); }else{ inp.style.display='none'; inp.value=''; } }
+function getSmartVal(id){ const sel=document.getElementById(id+'_sel'); const inp=document.getElementById(id); if(!sel) return inp?inp.value.trim():''; if(sel.value==='__new__'||sel.value==='') return inp?inp.value.trim():''; return sel.value; }
+function openAddForm(editId = null) { editMode = !!editId; editPaletteId = editId; const p = editId ? allPalettes.find(x => String(x.ID_Palette) === String(editId)) : null; const newId = editMode ? p.ID_Palette : generateId(); const typeOpts = ['MPC','GCCB'].map(t => `<option value="${t}" ${p?.Type===t?'selected':''}>${t}</option>`).join(''); const choixOpts = ['1','2','3'].map(c => `<option value="${c}" ${p?.Choix===c?'selected':''}>${c}</option>`).join(''); const statutOpts = editMode ? STATUSES.map(s => `<option value="${s}" ${p?.Statut===s?'selected':''}>${s}</option>`).join('') : `<option value="P_Brut" selected>P_Brut</option>`; document.getElementById('addModalContent').innerHTML = `<div class="modal-title">${editMode ? '✏️ Modifier la palette' : '➕ Nouvelle palette'}</div><div class="form-group"><label>ID Palette</label><input type="text" id="f_id" value="${newId}" readonly></div><div class="form-group"><label>Date</label><input type="text" id="f_date" value="${editMode?(p.Date||''):formatDate(new Date())}" readonly></div><div class="form-group"><label>Type *</label><select id="f_type"><option value="">— Sélectionner —</option>${typeOpts}</select></div><div class="form-group"><label>Modèle *</label><div class="autocomplete-wrap"><input type="text" id="f_model" value="${p?.Model||''}" placeholder="Taper pour rechercher..." oninput="acModel(this.value)" autocomplete="off"><div class="autocomplete-list" id="acList" style="display:none"></div></div></div><div class="form-group"><label>Choix *</label><select id="f_choix"><option value="">— Sélectionner —</option>${choixOpts}</select></div>${smartSelect('f_operateur', 'Opérateur', 'Operateur', p?.Operateur||'', true)}<div class="form-group"><label>Contrôleur</label><input type="text" id="f_controleur" value="${currentUser.Nom}" readonly></div>${smartSelect('f_agent', 'Agent de Plastification', 'Agent de Plastification', p?.['Agent de Plastification']||'')}<div class="form-group"><label>N° Cartons * <span style="color:var(--muted);font-weight:400;text-transform:none;font-size:11px;">(1–70)</span></label><div class="stepper"><button type="button" class="stepper-btn" onclick="stepCartons(-1)">−</button><input type="number" id="f_cartons" min="1" max="70" value="${p?.N_Cartons||''}" placeholder="—" oninput="clampCartons(this)" onchange="clampCartons(this)" inputmode="numeric"><button type="button" class="stepper-btn" onclick="stepCartons(1)">+</button></div></div><div class="form-group"><label>Observations</label><textarea id="f_obs" rows="3" placeholder="Optionnel...">${p?.Observations||''}</textarea></div><div class="form-group"><label>Statut</label><select id="f_statut" ${!editMode ? 'disabled' : ''}>${statutOpts}</select>${!editMode ? '<div style="font-size:11px;color:var(--muted);margin-top:4px;">⚠️ Les nouvelles palettes sont toujours en statut "P_Brut"</div>' : ''}</div><div class="form-group"><label>QR Code</label><img src="https://quickchart.io/qr?text=${newId}&size=120" style="border-radius:10px;display:block;margin-top:6px;"></div><div style="display:flex;flex-direction:column;gap:10px;margin-top:8px;padding-bottom:8px;"><button class="btn btn-primary" onclick="submitPalette()">💾 ${editMode ? 'Enregistrer les modifications' : 'Ajouter la palette'}</button><button class="btn btn-secondary" onclick="closeModal('addModal')">✕ Annuler</button></div>`; openModal('addModal'); }
+function stepCartons(d){ const inp=document.getElementById('f_cartons'); let v=parseInt(inp.value)||0; inp.value=Math.min(70,Math.max(1,v+d)); }
+function clampCartons(inp){ let v=parseInt(inp.value); if(isNaN(v)||v<1) inp.value=1; else if(v>70) inp.value=70; }
+function acModel(val){ const list=document.getElementById('acList'); if(!val){ list.style.display='none'; return; } const all=[...new Set([...MODELS,...existingVals('Model')])]; const matches=all.filter(m=>m.toLowerCase().includes(val.toLowerCase())); if(!matches.length){ list.style.display='none'; return; } list.innerHTML=matches.map(m=>`<div class="autocomplete-item" onclick="selectModel('${m}')">${m}</div>`).join(''); list.style.display='block'; }
+function selectModel(val){ document.getElementById('f_model').value=val; document.getElementById('acList').style.display='none'; }
+async function submitPalette() { const type=document.getElementById('f_type').value; const model=document.getElementById('f_model').value.trim(); const choix=document.getElementById('f_choix').value; const op=getSmartVal('f_operateur'); const cartons=document.getElementById('f_cartons').value; const obs=document.getElementById('f_obs').value.trim(); const statut=editMode?document.getElementById('f_statut').value:'P_Brut'; const id=document.getElementById('f_id').value; const date=document.getElementById('f_date').value; const agent=getSmartVal('f_agent'); if(!type||!model||!choix||!op||!cartons){ showToast('Veuillez remplir tous les champs *',true); return; } const n=parseInt(cartons); if(isNaN(n)||n<1||n>70){ showToast('N° Cartons doit être entre 1 et 70',true); return; } const row={ ID_Palette:id, Date:date, Type:type, Model:model, Choix:choix, Operateur:op, Controleur:currentUser.Nom, 'Agent de Plastification':agent, N_Cartons:n, Observations:obs, Statut:statut, QR_Code:`https://quickchart.io/qr?text=${id}&size=150` }; try{ if(editMode){ await writeSheet({action:'update',sheet:'Palettes',id:editPaletteId,data:row}); closeModal('addModal'); showToast('Palette modifiée ✓'); } else{ await writeSheet({action:'add',sheet:'Palettes',data:row}); closeModal('addModal'); showSuccessQR(id); } await refreshData(); }catch(e){ showToast('Erreur: '+e.message,true); } }
+function showSuccessQR(id){ const qr=`https://quickchart.io/qr?text=${id}&size=220`; document.getElementById('addModalContent').innerHTML=`<div class="success-card"><div class="success-icon">✅</div><h3>Palette ajoutée !</h3><p>ID: <strong>${id}</strong></p><img src="${qr}" style="border-radius:12px;margin:16px auto;display:block;" width="200" height="200"><button class="btn btn-secondary" style="margin-top:8px;" onclick="saveQR('${id}','${qr}')">💾 Sauvegarder QR Code</button></div><button class="btn btn-primary" style="margin-top:12px;" onclick="closeModal('addModal')">✓ Fermer</button>`; openModal('addModal'); }
+function generateId() { const d=new Date(); return [d.getDate(),d.getMonth()+1,d.getFullYear()%100,d.getHours(),d.getMinutes(),d.getSeconds()].map(n=>String(n).padStart(2,'0')).join(''); }
+function formatDate(d){ return [d.getDate(),d.getMonth()+1,d.getFullYear()].map((n,i)=>i===2?n:String(n).padStart(2,'0')).join('/')+' '+[d.getHours(),d.getMinutes(),d.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':'); }
+function showToast(msg, isError=false){ const t=document.createElement('div'); t.style.cssText=`position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:${isError?'var(--red)':'var(--green)'};color:${isError?'#fff':'#000'};padding:12px 20px;border-radius:20px;font-size:14px;font-weight:600;z-index:9999;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,0.4);`; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),3000); }
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+let confirmCb = null;
+function showConfirm(icon, title, msg, cb){ document.getElementById('confirmIcon').textContent=icon; document.getElementById('confirmTitle').textContent=title; document.getElementById('confirmMsg').textContent=msg; confirmCb=cb; document.getElementById('confirmOkBtn').onclick=()=>{ closeConfirm(); if(confirmCb) confirmCb(); }; document.getElementById('confirmDialog').classList.add('open'); }
+function closeConfirm(){ document.getElementById('confirmDialog').classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(o=>{ o.addEventListener('click',e=>{ if(e.target!==o)return; if(o.id==='scannerModal') closeScanner(); else closeModal(o.id); }); });
+document.addEventListener('click',e=>{ if(!e.target.closest('.autocomplete-wrap')){ const l=document.getElementById('acList'); if(l) l.style.display='none'; } });
+document.addEventListener('DOMContentLoaded', () => { ['mp_palettes','mp_tileWidth','mp_tileHeight','mp_cartonsPerPalette','mp_tilesPerCarton'].forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('input', mpUpdatePreview); }); });
+setTimeout(() => { ['mp_palettes','mp_tileWidth','mp_tileHeight','mp_cartonsPerPalette','mp_tilesPerCarton'].forEach(id => { const el = document.getElementById(id); if (el && !el._mpBound) { el.addEventListener('input', mpUpdatePreview); el._mpBound = true; } }); }, 500);
+</script>
+</body>
+</html>
